@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
@@ -43,9 +44,9 @@ type SignalResult = {
 };
 
 // --- API & DATA LOGIC ---
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const getStockData = async (symbol: string): Promise<StockData | null> => {
+const getStockData = async (symbol: string, apiKey: string): Promise<StockData | null> => {
+    const ai = new GoogleGenAI({ apiKey });
     try {
         const prompt = `
 For the US stock ticker "${symbol}", provide the following information in a single JSON object.
@@ -518,7 +519,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
     );
 };
 
-const App = () => {
+const App = ({ apiKey }: { apiKey: string }) => {
     const [symbol, setSymbol] = useState('');
     const [shortPeriod, setShortPeriod] = useState('10');
     const [longPeriod, setLongPeriod] = useState('20');
@@ -546,7 +547,7 @@ const App = () => {
         setResult(null);
 
         try {
-            const data = await getStockData(symbol.trim().toUpperCase());
+            const data = await getStockData(symbol.trim().toUpperCase(), apiKey);
             if (data) {
                 const analysisResult = analyzeData(symbol, data, short, long);
                 setResult(analysisResult);
@@ -682,5 +683,149 @@ const App = () => {
     );
 };
 
+
+const ApiKeyPrompt = ({ onApiKeySubmit }: { onApiKeySubmit: (key: string) => void }) => {
+    const [apiKey, setApiKey] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (apiKey.trim()) {
+            onApiKeySubmit(apiKey.trim());
+        }
+    };
+
+    const styles: { [key: string]: React.CSSProperties } = {
+        container: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            animation: 'fadeIn 0.5s ease-in-out',
+            padding: '2.5rem',
+            backgroundColor: 'var(--input-bg-color)',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            textAlign: 'left'
+        },
+        title: {
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'var(--primary-color)',
+            margin: 0,
+        },
+        p: {
+            color: '#AAAAAA',
+            margin: '0.5rem 0 0 0',
+            lineHeight: 1.5,
+        },
+        form: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            marginTop: '1rem',
+        },
+        input: {
+            padding: '0.75rem 1rem',
+            fontSize: '1rem',
+            backgroundColor: '#0a0a0a',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            color: 'var(--text-color)',
+            outline: 'none',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+        },
+        button: {
+            padding: '0.75rem 1.5rem',
+            fontSize: '1rem',
+            fontWeight: 500,
+            backgroundColor: 'var(--primary-color)',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s, transform 0.2s'
+        },
+        link: {
+            color: 'var(--primary-color)',
+            textDecoration: 'none',
+            fontWeight: 500,
+        },
+        guide: {
+            marginTop: '1.5rem',
+            paddingTop: '1.5rem',
+            borderTop: '1px solid var(--border-color)',
+        },
+        guideTitle: {
+             fontSize: '1rem',
+             fontWeight: 700,
+             color: 'var(--text-color)',
+             margin: '0 0 1rem 0',
+        },
+        steps: {
+            listStylePosition: 'inside',
+            padding: 0,
+            margin: 0,
+            color: '#AAAAAA',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+        }
+    };
+
+    return (
+        <div style={styles.container}>
+            <h1 style={styles.title}>Welcome! One Quick Step</h1>
+            <p style={styles.p}>
+                This app uses the Google Gemini API to get live data. To protect the developer from costs, you'll need your own free API key to use it.
+            </p>
+             <p style={styles.p}>
+                Your key is saved only in this browser and is never shared.
+            </p>
+            <form onSubmit={handleSubmit} style={styles.form}>
+                <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Enter your Gemini API Key"
+                    style={styles.input}
+                    aria-label="Gemini API Key"
+                />
+                <button type="submit" style={styles.button}>
+                    Save and Start Analyzing
+                </button>
+            </form>
+
+            <div style={styles.guide}>
+                <h2 style={styles.guideTitle}>How to Get Your Free Key (in 30 seconds)</h2>
+                <ol style={styles.steps}>
+                    <li>
+                        Go to {' '}
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={styles.link}>
+                             Google AI Studio
+                        </a>.
+                    </li>
+                    <li>Click <strong>"Create API key in new project"</strong>.</li>
+                    <li>Copy the key that appears and paste it above. That's it!</li>
+                </ol>
+            </div>
+        </div>
+    );
+};
+
+const AppWrapper = () => {
+    const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('GEMINI_API_KEY'));
+
+    const handleApiKeySubmit = (key: string) => {
+        sessionStorage.setItem('GEMINI_API_KEY', key);
+        setApiKey(key);
+    };
+
+    if (!apiKey) {
+        return <ApiKeyPrompt onApiKeySubmit={handleApiKeySubmit} />;
+    }
+
+    return <App apiKey={apiKey} />;
+};
+
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
-root.render(<App />);
+root.render(<AppWrapper />);
