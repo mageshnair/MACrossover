@@ -76,14 +76,12 @@
   }
 }
 </script>
-    <!-- 1. Add the Babel Standalone script to act as an in-browser translator -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
-    <!-- 2. Use type="text/babel" for Babel and data-type="module" for ES module imports -->
-    <script type="text/babel" data-type="module" src="/index.tsx"></script>
+    <script type="text/babel" data-type="module" src="index.tsx"></script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>
