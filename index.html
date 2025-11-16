@@ -3,7 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MA Crossover Signal</title>
+    <title>Scroll Component Example</title>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "@google/genai": "https://esm.sh/@google/genai",
+            "react/": "https://aistudiocdn.com/react@^19.2.0/",
+            "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+            "react": "https://aistudiocdn.com/react@^19.2.0"
+        }
+    }
+    </script>
+
     <style>
         :root {
             --bg-color: #0a0a0a;
@@ -11,7 +23,6 @@
             --primary-color: #4A90E2;
             --success-color: #28a745;
             --danger-color: #dc3545;
-            --neutral-color: #ffc107;
             --input-bg-color: #1a1a1a;
             --border-color: #333333;
         }
@@ -29,6 +40,7 @@
             align-items: flex-start;
             min-height: 100vh;
             box-sizing: border-box;
+            overflow-y: scroll; /* Ensure the body can scroll */
         }
 
         #root {
@@ -43,42 +55,112 @@
             gap: 1.5rem;
             animation: fadeIn 0.5s ease-in-out;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        input:focus {
-             border-color: var(--primary-color);
-             box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
-        }
         
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s, transform 0.2s;
+            margin-bottom: 20px;
+        }
+
         button:hover:not(:disabled) {
             background-color: #357ABD;
             transform: translateY(-2px);
         }
 
-        button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-            opacity: 0.7;
+        /* Styles for the demo */
+        .scroll-container {
+            height: 200vh; /* Make the container tall enough to scroll */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+        .placeholder {
+            height: 100vh;
+            border: 1px dashed var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+        }
+        .target-section {
+            padding: 30px;
+            background-color: #004d40; /* Darker teal background */
+            border: 2px solid #00bcd4;
+            border-radius: 8px;
+            color: white;
+            width: 90%;
+            margin-top: 50px; /* Space above target */
         }
     </style>
-    <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://esm.sh/@google/genai",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+
+    <script type="module">
+        import React, { useRef, useState } from 'react';
+        import ReactDOM from 'react-dom/client';
+        // Note: GoogleGenAI is imported but not used in this demo component
+
+        // --- The React Component ---
+        const ScrollComponent = () => {
+            // Hook to reference the target HTML div
+            const sectionRef = useRef(null);
+            const [status, setStatus] = useState('Ready to scroll!');
+
+            // Function to scroll to the referenced div
+            const handleSectionClick = () => {
+                if (sectionRef.current) {
+                    // This is the key line: using the ref to call the DOM method
+                    sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    setStatus('Scrolled! (Check the bottom of the page)');
+                } else {
+                    setStatus('Error: Section not found.');
+                }
+            };
+
+            // Render the HTML structure
+            return (
+                <div className="scroll-container">
+                    <h1>Scroll Demonstration</h1>
+                    <p>Status: **{status}**</p>
+
+                    {/* Button to trigger the scroll action */}
+                    <button onClick={handleSectionClick}>
+                        Scroll to Target Section
+                    </button>
+
+                    {/* Placeholder content to ensure scrolling is possible */}
+                    <div className="placeholder">
+                        Content Area 1: Scrolls past this point.
+                    </div>
+
+                    {/* The target DIV element connected by ref={sectionRef} */}
+                    <div ref={sectionRef} className="target-section">
+                        <h2>🎯 Target Section Reached!</h2>
+                        <p>This is the element referenced by the `useRef` hook.</p>
+                    </div>
+                </div>
+            );
+        };
+        
+        // --- Application Initialization (Mounting React) ---
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(
+                <React.StrictMode>
+                    <ScrollComponent />
+                </React.StrictMode>
+            );
+        }
+    </script>
 </body>
 </html>
