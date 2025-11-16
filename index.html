@@ -71,6 +71,7 @@
     "@google/genai": "https://esm.sh/@google/genai",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
     "react": "https://aistudiocdn.com/react@^19.2.0"
   }
 }
@@ -81,8 +82,8 @@
 </head>
 <body>
     <div id="root"></div>
-    <!-- 2. Change the script type to "text/babel" to tell Babel to translate it -->
-    <script type="text/babel" src="/index.tsx"></script>
+    <!-- 2. Use type="text/babel" for Babel and data-type="module" for ES module imports -->
+    <script type="text/babel" data-type="module" src="/index.tsx"></script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>
