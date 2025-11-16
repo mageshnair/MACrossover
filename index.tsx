@@ -1,84 +1,78 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
-// --- API Key Setup ---
-// WARNING: This key is exposed in the browser. Use a dedicated key for front-end demos.
-const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"; 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-
 // --- TYPES ---
-// Note: PriceData type is simplified for JSON.parse context
-// type PriceData = {
-//     date: string;
-//     close: number;
-// };
+type PriceData = {
+  date: string;
+  close: number;
+};
 
 type StockData = {
-    companyName: string;
-    exchange: string;
-    latestPrice: number;
-    news: { title: string; source: string; }[];
-    ratings: string[];
-    sentimentSummary: string;
-    earningsDate: string;
-    prices: { date: string; close: number; }[]; // Use simplified structure
+  companyName: string;
+  exchange: string;
+  latestPrice: number;
+  news: { title: string; source: string; }[];
+  ratings: string[];
+  prices: PriceData[];
+  sentimentSummary: string;
+  earningsDate: string;
 };
 
 type Signal = 'up' | 'down' | 'neutral';
 
 type SignalResult = {
-    signal: Signal;
-    symbol: string;
-    companyName: string;
-    exchange: string;
-    crossoverPrice: number;
-    latestPrice: number;
-    distancePercent: number;
-    news: { title: string; source: string; }[];
-    ratings: string[];
-    sentimentSummary: string;
-    earningsDate: string;
-    // Data for chart
-    prices: number[];
-    smaShort: (number | null)[];
-    smaLong: (number | null)[];
-    crossoverIndex: number;
-    shortPeriod: number;
-    longPeriod: number;
+  signal: Signal;
+  symbol: string;
+  companyName: string;
+  exchange: string;
+  crossoverPrice: number;
+  latestPrice: number;
+  distancePercent: number;
+  news: { title: string; source: string; }[];
+  ratings: string[];
+  sentimentSummary: string;
+  earningsDate: string;
+  // Data for chart
+  prices: number[];
+  smaShort: (number | null)[];
+  smaLong: (number | null)[];
+  crossoverIndex: number;
+  shortPeriod: number;
+  longPeriod: number;
 };
 
 // --- API & DATA LOGIC ---
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getStockData = async (symbol: string): Promise<StockData | null> => {
     try {
         const prompt = `
 For the US stock ticker "${symbol}", provide the following information in a single JSON object.
-1. Use Google Search to find the most up-to-date, real information for the company name, primary exchange, and latest stock price.
-2. Use Google Search to find 2-3 recent news headlines (with source) and 2-3 recent analyst rating changes (upgrades/downgrades).
-3. Use Google Search to analyze public sentiment over the last 2 weeks from sources like X.com or public forums. Provide a brief, one-sentence summary (e.g., "Sentiment is generally positive due to recent earnings reports.").
-4. Use Google Search to find the next upcoming earnings release date, including whether it is pre-market (AM) or post-market (PM). If not available, return an empty string.
-5. Generate a list of simulated daily closing prices for the last 40 trading days to be used for technical analysis.
+1.  Use Google Search to find the most up-to-date, real information for the company name, primary exchange, and latest stock price.
+2.  Use Google Search to find 2-3 recent news headlines (with source) and 2-3 recent analyst rating changes (upgrades/downgrades).
+3.  Use Google Search to analyze public sentiment over the last 2 weeks from sources like X.com or public forums. Provide a brief, one-sentence summary (e.g., "Sentiment is generally positive due to recent earnings reports.").
+4.  Use Google Search to find the next upcoming earnings release date, including whether it is pre-market (AM) or post-market (PM). If not available, return an empty string.
+5.  Generate a list of simulated daily closing prices for the last 40 trading days to be used for technical analysis.
 
 The final JSON object must have this exact structure:
 {
-    "companyName": "...",
-    "exchange": "...",
-    "latestPrice": 123.45,
-    "news": [
-        { "title": "...", "source": "..." }
-    ],
-    "ratings": [
-        "Analyst X upgraded to Buy.",
-        "..."
-    ],
-    "sentimentSummary": "...",
-    "earningsDate": "YYYY-MM-DD (AM/PM)",
-    "prices": [
-        { "date": "YYYY-MM-DD", "close": 120.00 },
-        // ... 39 more entries
-    ]
+  "companyName": "...",
+  "exchange": "...",
+  "latestPrice": 123.45,
+  "news": [
+    { "title": "...", "source": "..." }
+  ],
+  "ratings": [
+    "Analyst X upgraded to Buy.",
+    "..."
+  ],
+  "sentimentSummary": "...",
+  "earningsDate": "YYYY-MM-DD (AM/PM)",
+  "prices": [
+    { "date": "YYYY-MM-DD", "close": 120.00 },
+    ... 39 more entries
+  ]
 }
 `;
         const response = await ai.models.generateContent({
@@ -89,7 +83,6 @@ The final JSON object must have this exact structure:
             },
         });
         
-        // Clean up markdown fences from the JSON output
         let jsonText = response.text.trim();
         if (jsonText.startsWith('```json')) {
             jsonText = jsonText.substring(7, jsonText.length - 3).trim();
@@ -100,9 +93,9 @@ The final JSON object must have this exact structure:
         const data = JSON.parse(jsonText) as StockData;
         
         if (data.prices.length < 20) {
-          throw new Error("Not enough historical data to calculate indicators (requires at least 20 entries).");
+          throw new Error("Not enough historical data to calculate indicators.");
         }
-        
+      
         return data;
 
     } catch (error) {
@@ -146,11 +139,9 @@ const analyzeData = (symbol: string, data: StockData, shortPeriod: number, longP
         const currLong = smaLong[i];
 
         if (prevShort !== null && prevLong !== null && currShort !== null && currLong !== null) {
-            // Golden Cross (Short crosses ABOVE Long)
             if (prevShort <= prevLong && currShort > currLong) {
                 lastCrossover = { type: 'up', index: i };
             }
-            // Death Cross (Short crosses BELOW Long)
             if (prevShort >= prevLong && currShort < currLong) {
                 lastCrossover = { type: 'down', index: i };
             }
@@ -184,13 +175,11 @@ const analyzeData = (symbol: string, data: StockData, shortPeriod: number, longP
     const crossoverPrice = prices[lastCrossover.index];
     let currentSignal = lastCrossover.type;
 
-    // Check if the signal is still valid (i.e., price is still "on the right side" of the crossover)
-    // This is a simplification but helps flag old signals as neutral if the price reversed significantly
-    // if (currentSignal === 'up' && latestPrice < crossoverPrice) {
-    //     currentSignal = 'neutral';
-    // } else if (currentSignal === 'down' && latestPrice > crossoverPrice) {
-    //     currentSignal = 'neutral';
-    // }
+    if (currentSignal === 'up' && latestPrice < crossoverPrice) {
+        currentSignal = 'neutral';
+    } else if (currentSignal === 'down' && latestPrice > crossoverPrice) {
+        currentSignal = 'neutral';
+    }
 
     const distancePercent = ((latestPrice - crossoverPrice) / crossoverPrice) * 100;
 
@@ -222,11 +211,11 @@ const Chart = ({ prices, smaShort, smaLong, crossoverIndex, shortPeriod, longPer
     const height = 250;
     const padding = 20;
 
-    const allData = [...prices, ...smaShort, ...smaLong].filter((p): p is number => p !== null && p !== undefined);
-    if (allData.length === 0) return null;
+    const validPrices = prices.filter(p => p !== null && p !== undefined);
+    if (validPrices.length === 0) return null;
     
-    const minPrice = Math.min(...allData);
-    const maxPrice = Math.max(...allData);
+    const minPrice = Math.min(...validPrices);
+    const maxPrice = Math.max(...validPrices);
     const priceRange = maxPrice - minPrice === 0 ? 1 : maxPrice - minPrice;
 
     const xScale = (index: number) => (index / (prices.length - 1)) * (width - 2 * padding) + padding;
@@ -254,9 +243,8 @@ const Chart = ({ prices, smaShort, smaLong, crossoverIndex, shortPeriod, longPer
     const smaShortPath = createPath(smaShort);
     const smaLongPath = createPath(smaLong);
 
-    // Find the price at the crossover index for the marker
     const crossoverX = crossoverIndex > -1 ? xScale(crossoverIndex) : null;
-    const crossoverY = crossoverIndex > -1 && prices[crossoverIndex] !== undefined ? yScale(prices[crossoverIndex]) : null;
+    const crossoverY = crossoverIndex > -1 && prices[crossoverIndex] !== null ? yScale(prices[crossoverIndex]) : null;
     
     const legendColorBox = (color: string): React.CSSProperties => ({
         width: '12px',
@@ -327,8 +315,8 @@ const Chart = ({ prices, smaShort, smaLong, crossoverIndex, shortPeriod, longPer
 const SignalDisplay = ({ result }: { result: SignalResult }) => {
     const { signal, symbol, companyName, exchange, latestPrice, distancePercent, news, ratings, sentimentSummary, earningsDate } = result;
     const signalConfig = {
-        up: { icon: '📈', color: 'var(--success-color)', text: 'Bullish Crossover' },
-        down: { icon: '📉', color: 'var(--danger-color)', text: 'Bearish Crossover' },
+        up: { icon: '👍', color: 'var(--success-color)', text: 'Bullish Signal' },
+        down: { icon: '👎', color: 'var(--danger-color)', text: 'Bearish Signal' },
         neutral: { icon: '✋', color: 'var(--neutral-color)', text: 'Neutral Signal' }
     };
 
@@ -358,7 +346,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
 
     const daysUntilEarnings = getDaysUntil(earningsDate);
     const config = signalConfig[signal];
-    const formattedDistance = `${distancePercent >= 0 ? '+' : ''}${distancePercent.toFixed(2)}%`;
+    const formattedDistance = `${distancePercent > 0 ? '+' : ''}${distancePercent.toFixed(2)}%`;
 
     const styles: { [key: string]: React.CSSProperties } = {
         card: {
@@ -457,7 +445,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
                     <span style={styles.infoValue}>{exchange}</span>
                 </div>
                 <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Latest Price</span>
+                    <span style={styles.infoLabel}>Latest Price (Real-Time)</span>
                     <span style={styles.infoValue}>${latestPrice.toFixed(2)}</span>
                 </div>
                 <div style={styles.infoItem}>
@@ -470,7 +458,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
                         {formattedDistance}
                     </span>
                 </div>
-                  {earningsDate && (
+                 {earningsDate && (
                     <div style={{...styles.infoItem, gridColumn: '1 / -1'}}>
                         <span style={styles.infoLabel}>Next Earnings Date</span>
                         <span style={styles.infoValue}>
@@ -492,7 +480,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
                 shortPeriod={result.shortPeriod}
                 longPeriod={result.longPeriod}
             />
-            {(news?.length > 0 || ratings?.length > 0) && (
+             {(news?.length > 0 || ratings?.length > 0) && (
                 <div style={styles.intelSection}>
                     <h4 style={styles.intelHeader}>Latest Intelligence</h4>
                     {news?.length > 0 && (
@@ -508,7 +496,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
                         </div>
                     )}
                     {ratings?.length > 0 && (
-                          <div style={{ marginTop: news?.length > 0 ? '1rem' : '0' }}>
+                         <div style={{ marginTop: news?.length > 0 ? '1rem' : '0' }}>
                             <ul style={styles.intelList}>
                                 {ratings.map((item, index) => (
                                     <li key={index} style={styles.intelItem}>{item}</li>
@@ -518,7 +506,7 @@ const SignalDisplay = ({ result }: { result: SignalResult }) => {
                     )}
                 </div>
             )}
-            {sentimentSummary && (
+             {sentimentSummary && (
                 <div style={styles.sentimentSection}>
                     <h4 style={styles.intelHeader}>X.com Sentiment Analysis</h4>
                     <div style={styles.intelItem}>
@@ -535,10 +523,10 @@ const App = () => {
     const [shortPeriod, setShortPeriod] = useState('10');
     const [longPeriod, setLongPeriod] = useState('20');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [result, setResult] = useState(null);
+    const [error, setError] = useState<string | null>(null);
+    const [result, setResult] = useState<SignalResult | null>(null);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const short = parseInt(shortPeriod, 10);
         const long = parseInt(longPeriod, 10);
@@ -553,12 +541,6 @@ const App = () => {
             return;
         }
 
-        if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
-             setError("API Key is missing. Please replace 'YOUR_GEMINI_API_KEY_HERE' in the code.");
-             return;
-        }
-
-
         setIsLoading(true);
         setError(null);
         setResult(null);
@@ -569,14 +551,14 @@ const App = () => {
                 const analysisResult = analyzeData(symbol, data, short, long);
                 setResult(analysisResult);
             }
-        } catch (err) {
+        } catch (err: any) {
             setError(err.message || 'An unexpected error occurred.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const styles = {
+    const styles: { [key: string]: React.CSSProperties } = {
         title: {
             fontSize: '2rem',
             fontWeight: 700,
@@ -600,7 +582,7 @@ const App = () => {
             display: 'flex',
             gap: '0.5rem',
         },
-        periodInputs: {
+         periodInputs: {
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '0.5rem',
@@ -630,8 +612,7 @@ const App = () => {
             transition: 'background-color 0.2s, transform 0.2s'
         },
         loader: {
-            fontSize: '1rem',
-            color: 'var(--primary-color)'
+            fontSize: '1rem'
         },
         error: {
             color: 'var(--danger-color)',
@@ -645,18 +626,18 @@ const App = () => {
     return (
         <div className="container">
             <header>
-                <h1 style={styles.title}>MA Crossover Signal 🚀</h1>
+                <h1 style={styles.title}>MA Crossover Signal</h1>
                 <p style={styles.subtitle}>
                     Customizable Moving Average Indicator
                     <br />
                     <span style={{fontSize: '0.8rem', color: '#666'}}>
-                        Latest price, news & sentiment via Google Search. Historical data is simulated by Gemini.
+                        Latest price, news & sentiment via Google Search. Historical data is simulated.
                     </span>
                 </p>
             </header>
             <form onSubmit={handleSubmit} style={styles.form}>
-                <div style={styles.inputGroup}>
-                    <input
+                 <div style={styles.inputGroup}>
+                     <input
                         type="text"
                         value={symbol}
                         onChange={(e) => setSymbol(e.target.value)}
@@ -667,21 +648,21 @@ const App = () => {
                     />
                 </div>
                 <div style={styles.periodInputs}>
-                    <input
+                     <input
                         type="number"
                         value={shortPeriod}
                         onChange={(e) => setShortPeriod(e.target.value)}
-                        placeholder="Short MA Period (e.g., 10)"
+                        placeholder="Short MA"
                         style={styles.input}
                         aria-label="Short-term Moving Average Period"
                         disabled={isLoading}
                         min="1"
                     />
-                    <input
+                     <input
                         type="number"
                         value={longPeriod}
                         onChange={(e) => setLongPeriod(e.target.value)}
-                        placeholder="Long MA Period (e.g., 20)"
+                        placeholder="Long MA"
                         style={styles.input}
                         aria-label="Long-term Moving Average Period"
                         disabled={isLoading}
@@ -694,20 +675,12 @@ const App = () => {
             </form>
             <main>
                 {isLoading && <p style={styles.loader}>Fetching and analyzing data...</p>}
-                {error && <div style={styles.error}>**Error:** {error}</div>}
+                {error && <div style={styles.error}>{error}</div>}
                 {result && <SignalDisplay result={result} />}
             </main>
         </div>
     );
 };
 
-// --- Application Initialization ---
-const rootElement = document.getElementById('root');
-if (rootElement) {
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(
-        <React.StrictMode>
-            <App />
-        </React.StrictMode>
-    );
-}
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+root.render(<App />);
